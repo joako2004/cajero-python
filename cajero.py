@@ -1,7 +1,9 @@
-usuario_guardado = "joaquin" # valores de prueba, deberia recibir la información desde la base de datos 
-contraseña_guardada = "1234" # valores de prueba, deberia recibir la información desde la base de datos 
-saldo_guardado = 100 # valores de prueba, deberia recibir la información desde la base de datos 
+import sqlite3
 
+# datos:
+# usuario: joaquin
+# contraseña: 1234
+# saldo incial: 1000 
 
 def opciones():
     
@@ -53,37 +55,72 @@ def terminar_programa():
     print('Saliendo del sistema')
 
 def iniciar_cajero():
-    
-    saldo = saldo_guardado
+    try:
+        
+        conexion = sqlite3.connect('cajero.db')
+        cursor = conexion.cursor()
 
-    intentos = 3
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                contraseña TEXT NOT NULL,
+                saldo REAL DEFAULT 0
+            )
+        ''')
+        
+        cursor.execute('SELECT COUNT(*) FROM usuarios')
+        if cursor.fetchone()[0] == 0:
+            cursor.execute(
+                'INSERT INTO usuarios (nombre, contraseña, saldo) VALUES (?,?,?)',
+                ('joaquin', '1234', 1000.0)
+            )
+            conexion.commit()
 
-    while intentos > 0:
-        usuario = input('Ingrese su nombre de usuario: ')
-        contraseña = input('Ingrese su contraseña: ')
+        intentos = 3
 
-        if usuario.lower() == usuario_guardado.lower() and contraseña == contraseña_guardada:
-            print(f'Bienvenido {usuario}')
+        while intentos > 0:
+            usuario = input('Ingrese su nombre de usuario: ')
+            contraseña = str(input('Ingrese su contraseña: '))
+
             
-            while True:
-                opcion = opciones()
-                if opcion == 1:
-                    consultar_saldo(saldo)
-                elif opcion == 2:
-                    saldo = retirar_saldo(saldo)
-                elif opcion == 3:
-                    saldo = transferir_saldo(saldo)
-                elif opcion == 4:
-                    terminar_programa()
-                    return
-                else:
-                    print('Opción inválida. Intente de nuevo.')
-        else:
-            intentos -= 1
-            print(f'Usuario o contraseña incorrectos. Intentos restantes: {intentos}')
-            if intentos == 0:
-                print('Demasiados intentos. Reinicie el programa e intente de nuevo.')
-                break
+            cursor.execute('SELECT id, saldo FROM usuarios WHERE nombre = ? AND contraseña = ?', (usuario, contraseña))
+            resultado = cursor.fetchone()
 
+            if resultado:
+                id_usuario, saldo = resultado
+                print(f'Bienvenido {usuario}')
+
+                while True:
+                    opcion = opciones()
+                    if opcion == 1:
+                        consultar_saldo(saldo)
+                    elif opcion == 2:
+                        saldo = retirar_saldo(saldo)
+                        # 3. Actualizar el saldo en la base
+                        cursor.execute('UPDATE usuarios SET saldo = ? WHERE id = ?', (saldo, id_usuario))
+                        conexion.commit()
+                    elif opcion == 3:
+                        saldo = transferir_saldo(saldo)
+                        cursor.execute('UPDATE usuarios SET saldo = ? WHERE id = ?', (saldo, id_usuario))
+                        conexion.commit()
+                    elif opcion == 4:
+                        terminar_programa()
+                        conexion.close()
+                        return
+                    else:
+                        print('Opción inválida. Intente de nuevo.')
+            else:
+                intentos -= 1
+                print(f'Usuario o contraseña incorrectos. Intentos restantes: {intentos}')
+                if intentos == 0:
+                    print('Demasiados intentos. Reinicie el programa e intente de nuevo.')
+                    conexion.close()
+                    break
+    finally:
+        try:
+            conexion.close()
+        except NameError:
+            pass
 
 iniciar_cajero()
