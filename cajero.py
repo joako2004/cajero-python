@@ -123,4 +123,4 @@ def iniciar_cajero():
         except NameError:
             pass
 
-iniciar_cajero()
+
