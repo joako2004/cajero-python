@@ -1,10 +1,6 @@
 import sqlite3
 import time
 
-def imprimir_con_delay(mensaje, delay=0.8):
-    print(mensaje)
-    time.sleep(delay)
-
 class BaseDeDatos:
     def __init__(self, db_name='cajero.db'):
         self.db_name = db_name
@@ -28,6 +24,19 @@ class BaseDeDatos:
     def verificar_usuarios_existentes(self):
         self.cursor.execute('SELECT COUNT(*) FROM usuarios')
         return self.cursor.fetchone()[0]
+    
+    def usuario_existe(self, nombre_usuario):
+        """Verifica si un usuario ya existe en la base de datos"""
+        self.cursor.execute('SELECT COUNT(*) FROM usuarios WHERE nombre = ?', (nombre_usuario,))
+        return self.cursor.fetchone()[0] > 0
+    
+    def crear_nuevo_usuario(self, nombre, contraseña, saldo_inicial=0.0):
+        """Crea un nuevo usuario en la base de datos"""
+        self.cursor.execute(
+            'INSERT INTO usuarios (nombre, contraseña, saldo) VALUES (?,?,?)',
+            (nombre, contraseña, saldo_inicial)
+        )
+        self.conexion.commit()
     
     def crear_usuario_inicial(self):
         self.cursor.execute(
@@ -116,7 +125,8 @@ class Cajero:
                 2 - Retirar saldo
                 3 - Transferir
                 4 - Depositar saldo
-                5 - Salir
+                5 - Crear nuevos usuarios
+                6 - Salir
             """))
             return opcion
         
@@ -160,6 +170,9 @@ class Cajero:
                         elif opcion == 4:
                             self.usuario_actual.depositar_saldo()
                         elif opcion == 5:
+                            imprimir_con_delay('Iniciando creación de usuarios...')
+                            generar_usuarios()
+                        elif opcion == 6:
                             self.terminar_programa()
                             return
                         else:
@@ -177,6 +190,54 @@ class Cajero:
             except:
                 pass
 
+def generar_usuarios():
+    db = BaseDeDatos()
+    db.conectar()
+    db.crear_tabla_usuarios()
+    
+    usuarios = []
+    
+    while True:
+        try:
+            crear_usuario = input('¿Desea crear un usuarios? (Si/No)')
+            if crear_usuario.lower() == 'si':
+                try:
+                    nuevo_nombre_usuario = input('Ingrese el nombre del nuevo usuario: ')
+                    
+                    # Verificar si el usuario ya existe en la base de datos
+                    if db.usuario_existe(nuevo_nombre_usuario):
+                        imprimir_con_delay(f'El usuario "{nuevo_nombre_usuario}" ya existe. No se puede crear.')
+                        continue
+                        
+                    nueva_contraseña_usuario = input('Ingrese la contraseña del nuevo usuario: ')
+                    nuevo_saldo_usuario = float(input('Ingrese el saldo inicial del nuevo usuario: '))
+                    
+                    usuarios.append({
+                        'nombre': nuevo_nombre_usuario,
+                        'contraseña': nueva_contraseña_usuario,
+                        'saldo': nuevo_saldo_usuario
+                    })
+                    
+                    # Crear el usuario en la base de datos
+                    db.crear_nuevo_usuario(nuevo_nombre_usuario, nueva_contraseña_usuario, nuevo_saldo_usuario)
+                    
+                    # No necesitamos crear un objeto Usuario aquí, solo estamos registrando usuarios
+                    # El objeto Usuario se crea cuando alguien inicia sesión
+                    imprimir_con_delay(f'Usuario {nuevo_nombre_usuario} creado con éxito')
+
+                except ValueError:
+                        print('Ingrese valores válidos')
+                        continue
+            else:
+                break
+        except ValueError:
+            print('Ingrese una respuesta válida')
+    
+    db.cerrar_conexion()
+
+def imprimir_con_delay(mensaje, delay=0.8):
+    print(mensaje)
+    time.sleep(delay)
 
 if __name__ == "__main__":
     atm = Cajero()
