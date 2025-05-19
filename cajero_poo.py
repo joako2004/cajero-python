@@ -57,6 +57,11 @@ class BaseDeDatos:
     def cerrar_conexion(self):
         if self.conexion:
             self.conexion.close()
+    
+    def obtener_usuarios(self):
+        """Obtiene la lista de todos los usuarios registrados"""
+        self.cursor.execute('SELECT nombre FROM usuarios ORDER BY nombre')
+        return [row[0] for row in self.cursor.fetchall()]
 
 
 class Usuario:
@@ -126,7 +131,8 @@ class Cajero:
                 3 - Transferir
                 4 - Depositar saldo
                 5 - Crear nuevos usuarios
-                6 - Salir
+                6 - Mostrar usuarios registrados
+                7 - Salir
             """))
             return opcion
         
@@ -137,6 +143,18 @@ class Cajero:
     def terminar_programa(self):
         imprimir_con_delay('Saliendo del sistema')
         self.db.cerrar_conexion()
+    
+    def mostrar_usuarios_registrados(self):
+        """Muestra la lista de usuarios registrados en el sistema"""
+        usuarios = self.db.obtener_usuarios()
+        if not usuarios:
+            imprimir_con_delay("No hay usuarios registrados en el sistema.")
+            return
+            
+        imprimir_con_delay("\n--- USUARIOS REGISTRADOS ---")
+        for i, nombre in enumerate(usuarios, 1):
+            imprimir_con_delay(f"{i}. {nombre}")
+        imprimir_con_delay("-------------------------\n")
     
     def iniciar_cajero(self):
         try:
@@ -173,6 +191,8 @@ class Cajero:
                             imprimir_con_delay('Iniciando creación de usuarios...')
                             generar_usuarios()
                         elif opcion == 6:
+                            self.mostrar_usuarios_registrados()
+                        elif opcion == 7:
                             self.terminar_programa()
                             return
                         else:
